@@ -1,0 +1,69 @@
+{
+  "project_info": {
+    "project_number": "767138743207",
+    "firebase_url": "https://usama-666-default-rtdb.firebaseio.com",
+    "project_id": "usama-666",
+    "storage_bucket": "usama-666.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:767138743207:android:8ac4876cf31a9a62a86c82",
+        "android_client_info": {
+          "package_name": "com.usama.geotagAdmin"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "767138743207-1q7sill7tpfb1etgu50dsvr8e5e53d8n.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA8InUKSg1BAzldC0wyFG3Kgr8FBY4aFHM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "767138743207-1q7sill7tpfb1etgu50dsvr8e5e53d8n.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:767138743207:android:3f6a33b004fba202a86c82",
+        "android_client_info": {
+          "package_name": "come.usama.geotagUser"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "767138743207-1q7sill7tpfb1etgu50dsvr8e5e53d8n.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA8InUKSg1BAzldC0wyFG3Kgr8FBY4aFHM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "767138743207-1q7sill7tpfb1etgu50dsvr8e5e53d8n.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
