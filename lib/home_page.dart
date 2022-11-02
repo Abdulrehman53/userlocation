@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:location/location.dart';
 import 'package:userlocation/main.dart';
 
+import 'get_address_location.dart';
+
 class HomePage extends StatefulWidget {
   const HomePage({
     Key? key,
@@ -29,6 +31,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   double? lat, lng;
   AppLifecycleState appLifecycleState = AppLifecycleState.detached;
 
+  String? address;
+
   // final databaseReference = FirebaseDatabase.instance.ref("users/123");
   DatabaseReference databaseReference = FirebaseDatabase.instance.ref();
   Future<void> askLocation() async {
@@ -49,14 +53,27 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     }
 
     _locationData = await location.getLocation();
+    try {
+      location.enableBackgroundMode(enable: true);
+    } catch (error) {
+      print("Can't set background mode");
+    }
     location.onLocationChanged.listen(
       (LocationData locationData) {
-        setState(() {
+        setState(() async {
           lat = _locationData!.latitude;
           lng = _locationData!.longitude;
+          address = await getPlace(lat, lng);
         });
+        // try {
+        //   await location.enableBackgroundMode(enable: true);
+        // } catch (error) {
+        //   print("Can't set background mode");
+        // }
+        // }
         print(lat);
         print(lng);
+
         createData(widget.user!.displayName, widget.user!.email,
             _locationData!.latitude, _locationData!.longitude);
       },
@@ -174,7 +191,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
                 Text("Location : "),
-                Text("${lat} ${lng}"),
+                // Text(lat ?? ' ' " " + lng ?? ' '),
+                Text(address ?? ''),
               ],
             ),
           ],
