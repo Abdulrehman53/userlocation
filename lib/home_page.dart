@@ -3,211 +3,294 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
-import 'package:location/location.dart';
-import 'package:userlocation/main.dart';
+import 'package:flutter_easyloading/flutter_easyloading.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:userlocation/shared_preferences_storage.dart';
+import 'table_result.dart';
+import 'user_data.dart';
+import 'custom_search.dart';
+import 'main.dart';
 
-import 'get_address_location.dart';
-
-class HomePage extends StatefulWidget {
-  const HomePage({
+class HomePageAdmin extends StatefulWidget {
+  const HomePageAdmin({
     Key? key,
     // required this.title,
     // required this.email,
-    required this.user,
+    this.user,
   }) : super(key: key);
 
   // final String title, email;
-  final User? user;
+  final String? user;
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  State<HomePageAdmin> createState() => _HomePageAdminState();
 }
 
-class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
-  Location location = Location();
-  bool? _serviceEnabled;
-  PermissionStatus? _permissionGranted;
-  LocationData? _locationData;
-  double? lat, lng;
-  AppLifecycleState appLifecycleState = AppLifecycleState.detached;
-
-  String? address;
-
-  // final databaseReference = FirebaseDatabase.instance.ref("users/123");
+class _HomePageAdminState extends State<HomePageAdmin> {
   DatabaseReference databaseReference = FirebaseDatabase.instance.ref();
-  Future<void> askLocation() async {
-    _serviceEnabled = await location.serviceEnabled();
-    if (!_serviceEnabled!) {
-      _serviceEnabled = await location.requestService();
-      if (!_serviceEnabled!) {
-        return;
-      }
-    }
+  List<UserData> userData = [];
+  List<UserData> usersFiltered = [];
 
-    _permissionGranted = await location.hasPermission();
-    if (_permissionGranted == PermissionStatus.denied) {
-      _permissionGranted = await location.requestPermission();
-      if (_permissionGranted != PermissionStatus.granted) {
-        return;
-      }
-    }
+  _getPlace(lat, lng) async {
+    List<Placemark> placemarks = await placemarkFromCoordinates(lat, lng);
 
-    _locationData = await location.getLocation();
-    try {
-      location.enableBackgroundMode(enable: true);
-    } catch (error) {
-      print("Can't set background mode");
-    }
-    location.onLocationChanged.listen(
-      (LocationData locationData) {
-        setState(() async {
-          lat = _locationData!.latitude;
-          lng = _locationData!.longitude;
-          address = await getPlace(lat, lng);
-        });
-        // try {
-        //   await location.enableBackgroundMode(enable: true);
-        // } catch (error) {
-        //   print("Can't set background mode");
-        // }
-        // }
-        print(lat);
-        print(lng);
+    Placemark placeMark = placemarks[0];
 
-        createData(widget.user!.displayName, widget.user!.email,
-            _locationData!.latitude, _locationData!.longitude);
-      },
-    );
+    String name = placeMark.name ?? '';
+    String subLocality = placeMark.subLocality ?? '';
+    String locality = placeMark.locality ?? '';
+    String administrativeArea = placeMark.administrativeArea ?? '';
+    String postalCode = placeMark.postalCode ?? '';
+    String country = placeMark.country ?? '';
+    String address =
+        "${name}, ${subLocality}, ${locality}, ${administrativeArea} ${postalCode}, ${country}";
+
+    // print(address);
+    return address;
   }
 
-  // Future<void> askLocation() async {
-  //   _serviceEnabled = await location.serviceEnabled();
-  //   if (!_serviceEnabled!) {
-  //     _serviceEnabled = await location.requestService();
-  //     if (!_serviceEnabled!) {
-  //       return;
-  //     }
-  //   }
-  //   // if (appLifecycleState == AppLifecycleState.paused) {
-  //   // in background
-
-  //   // try {
-  //   //   await location.enableBackgroundMode(enable: true);
-  //   // } catch (error) {
-  //   //   print("Can't set background mode");
-  //   // }
-  //   // }
-  //   _permissionGranted = await location.hasPermission();
-  //   if (_permissionGranted == PermissionStatus.denied) {
-  //     _permissionGranted = await location.requestPermission();
-  //     if (_permissionGranted != PermissionStatus.granted) {
-  //       return;
-  //     }
-  //   }
-
-  //   _locationData = await location.getLocation();
-  //   setState(() {
-  //     lat = _locationData!.latitude;
-  //     lng = _locationData!.longitude;
-  //   });
-  //   // print(lat);
-  //   // print(lng);
-  //   location.onLocationChanged.listen(
-  //     (LocationData locationData) {
-  //       setState(() {
-  //         lat = _locationData!.latitude;
-  //         lng = _locationData!.longitude;
-  //       });
-  //       print(lat);
-  //       print(lng);
-  //       createData(widget.user!.displayName, widget.user!.email,
-  //           _locationData!.latitude, _locationData!.longitude);
-  //     },
-  //   );
-  // }
-
+  late SharedPreferences sharedPreferences;
+  Timer? timer;
   @override
   void initState() {
-    askLocation();
-
+    readData().then((value) => usersFiltered = userData);
+    // usersFiltered = userData;
+    timer = Timer.periodic(const Duration(seconds: 60),
+        (Timer t) => readData().then((value) => usersFiltered = userData));
     super.initState();
-    // WidgetsBinding.instance.addObserver(this);
   }
-
-  // @override
-  // void didChangeAppLifecycleState(AppLifecycleState state) {
-  //   appLifecycleState = state;
-  // }
 
   @override
   void dispose() {
-    // TODO: implement dispose
-
-    // askLocation();
-    // lat;
-    // lng;
-
-    // WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
-  void createData(name, email, lat, long) async {
-    await databaseReference
-        .child("Users/${widget.user!.uid}")
-        .set({"name": name, "email": email, "lat": lat, "long": long});
-    print("written");
-    // await ref.set({
-    //   "name": "John",
-    //   "lat": 18,
-    //   "long": 18,
-    // });
+  Future<void> readData() async {
+    userData.clear();
+    UserData user;
+    databaseReference.once().then((DatabaseEvent snapshot) async {
+      for (var element in snapshot.snapshot.children) {
+        for (var val in element.children) {
+          var name = val.children.elementAt(0).value.toString().split("|")[0];
+          var type = val.children.elementAt(0).value.toString().split("|")[1];
+          var email = val.children.elementAt(1).value.toString();
+          var lat = val.children.elementAt(2).value.toString();
+          var lng = val.children.elementAt(3).value.toString();
+          var address = await _getPlace(
+              double.parse(lat.toString()), double.parse(lng.toString()));
+
+          user = UserData(
+              name: name,
+              email: email,
+              type: type,
+              lat: lat,
+              long: lng,
+              address: address);
+
+          setState(() {
+            userData.add(user);
+          });
+        }
+      }
+    });
+    // print(userData);
   }
+
+  // void createData(name, email, lat, long) async {
+  //   await databaseReference
+  //       .child("Users/${widget.user!.uid}")
+  //       .set({"name": name, "email": email, "lat": lat, "long": long});
+  //   print("written");
+  //   // await ref.set({
+  //   //   "name": "John",
+  //   //   "lat": 18,
+  //   //   "long": 18,
+  //   // });
+  // }
+
+  TextEditingController controller = TextEditingController();
+  String _searchResult = '';
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.user!.displayName!),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                Text("Name : "),
-                Text(widget.user!.displayName!.split("|").first),
-              ],
+      body: SafeArea(
+        child: ListView(
+          children: [
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.search),
+                title: TextField(
+                    controller: controller,
+                    decoration: const InputDecoration(
+                        hintText: 'Search', border: InputBorder.none),
+                    onChanged: (value) {
+                      setState(() {
+                        _searchResult = value;
+                        usersFiltered = userData
+                            .where((user) =>
+                                user.name.contains(_searchResult) ||
+                                user.email.contains(_searchResult) ||
+                                user.address.contains(_searchResult))
+                            .toList();
+                      });
+                    }),
+                trailing: IconButton(
+                  icon: const Icon(Icons.cancel),
+                  onPressed: () {
+                    setState(() {
+                      controller.clear();
+                      _searchResult = '';
+                      usersFiltered = userData;
+                    });
+                  },
+                ),
+              ),
             ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                Text("Email : "),
-                Text(widget.user!.email!),
-              ],
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                Text("Location : "),
-                // Text(lat ?? ' ' " " + lng ?? ' '),
-                Text(address ?? ''),
-              ],
-            ),
+            usersFiltered.isNotEmpty
+                ? TableComponent.buildTableComponen(
+                    context: context, userData: usersFiltered)
+                : const Expanded(
+                    child: Center(
+                    child: CircularProgressIndicator(),
+                  )),
           ],
         ),
       ),
+      // Container(
+      //   width: MediaQuery.of(context).size.width,
+      //   child: DataTable(
+      //     headingRowColor: MaterialStateProperty.all(Colors.green),
+      //     columns: const [
+      //       //       DataColumn(
+      //       //   label: Expanded(
+      //       //     child: Text(
+      //       //       'Type',
+      //       //       style: TextStyle(fontStyle: FontStyle.italic),
+      //       //     ),
+      //       //   ),
+      //       // ),
+      //       DataColumn(
+      //         label: Expanded(
+      //           child: Text(
+      //             'Name',
+      //             style: TextStyle(
+      //                 fontStyle: FontStyle.italic, color: Colors.white),
+      //           ),
+      //         ),
+      //       ),
+      //       DataColumn(
+      //         label: Expanded(
+      //           child: Text(
+      //             'Address',
+      //             style: TextStyle(
+      //                 fontStyle: FontStyle.italic, color: Colors.white),
+      //           ),
+      //         ),
+      //       ),
+      //       DataColumn(
+      //         label: Expanded(
+      //           child: Text(
+      //             'Email',
+      //             style: TextStyle(
+      //                 fontStyle: FontStyle.italic, color: Colors.white),
+      //           ),
+      //         ),
+      //       ),
+      //     ],
+      //     rows: userData.map((item) {
+      //       return DataRow(
+      //           color: MaterialStateProperty.all(Colors.lightBlueAccent),
+      //           cells: [
+      //             DataCell(Container(
+      //                 // width: (MediaQuery.of(context).size.width / 10) * 3,
+      //                 child: Text(item.name,
+      //                     style: const TextStyle(
+      //                         color: Colors.red, fontSize: 12)))),
+
+      //             // DataCell(Icon(Icons.power)),
+      //             DataCell(Container(
+      //               // width: (MediaQuery.of(context).size.width / 10) * 3,
+      //               child: Text(item.address,
+      //                   style:
+      //                       const TextStyle(color: Colors.red, fontSize: 12)),
+      //             )),
+      //             DataCell(Container(
+      //               width: (MediaQuery.of(context).size.width / 10) * 2,
+      //               child: Text(item.email,
+      //                   style:
+      //                       const TextStyle(color: Colors.red, fontSize: 12)),
+      //             ))
+      //           ]);
+      //     }).toList(),
+      //   ),
+      // ),
+
+      //  ListView.builder(
+      //     itemCount: userData.length,
+      //     scrollDirection: Axis.vertical,
+      //     itemBuilder: (BuildContext context, int index) {
+      //       return ListTile(
+      //         leading: Text(userData[index].type),
+      //         trailing: Text(userData[index].name),
+      //         title: Text(userData[index].email),
+      //         subtitle: Column(
+      //           crossAxisAlignment: CrossAxisAlignment.start,
+      //           children: [
+      //             // Text(
+      //             //   "lat = ${userData[index].lat} ",
+      //             //   style: TextStyle(color: Colors.green, fontSize: 15),
+      //             // ),
+      //             // Text(
+      //             //   "lng = ${userData[index].long} ",
+      //             //   style: TextStyle(color: Colors.green, fontSize: 15),
+      //             // ),
+      //             Text(
+      //               "address = ${userData[index].address} ",
+      //               style: TextStyle(color: Colors.green, fontSize: 15),
+      //             ),
+      //           ],
+      //         ),
+      //       );
+      //     }),
+
+      // Row(
+      //   mainAxisAlignment: MainAxisAlignment.center,
+      //   children: <Widget>[
+      //     Text("Name : "),
+      //     Text(widget.user!.displayName!),
+      //   ],
+      // ),
+      // Row(
+      //   mainAxisAlignment: MainAxisAlignment.center,
+      //   children: <Widget>[
+      //     Text("Email : "),
+      //     Text(widget.user!.email!),
+      //   ],
+      // ),
+      // Row(
+      //   mainAxisAlignment: MainAxisAlignment.center,
+      //   children: <Widget>[
+      //     Text("Location : "),
+      //     Text("${lat} ${lng}"),
+      //   ],
+      // ),
+
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          await FirebaseAuth.instance.signOut();
+          EasyLoading.show(status: 'loading...');
+          // await FirebaseAuth.instance.signOut();
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text("Sign out Successfully"),
             backgroundColor: Colors.blueAccent,
           ));
+          sharedPreferences = await SharedPreferences.getInstance();
+          SharePreferencesStore.setPreference(sharedPreferences, false);
           Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (context) => LoginPage()),
+              MaterialPageRoute(builder: (context) => const LoginPage()),
               (Route<dynamic> route) => false);
+          EasyLoading.dismiss();
         },
         tooltip: 'Sign out',
         child: const Icon(Icons.logout),

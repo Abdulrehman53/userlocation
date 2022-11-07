@@ -6,8 +6,11 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:userlocation/home_page.dart';
+import 'package:userlocation/shared_preferences_storage.dart';
 
-import 'home_page.dart';
+import 'home_page_user.dart';
 
 void main() {
   // runApp(const MyApp());
@@ -53,6 +56,7 @@ class _LoginPageState extends State<LoginPage> {
   FirebaseAuth auth = FirebaseAuth.instance;
   UserCredential? userCredential;
   User? user;
+
   Future<bool?> firebaseAuthentication(name, email, password) async {
     if (name != '' && email != '' && password != '') {
       try {
@@ -110,9 +114,10 @@ class _LoginPageState extends State<LoginPage> {
     return false;
   }
 
+  late SharedPreferences sharedPreference;
   @override
   void initState() {
-    FirebaseAuth.instance.authStateChanges().listen((User? user) {
+    FirebaseAuth.instance.authStateChanges().listen((User? user) async {
       if (user != null) {
         if (user.displayName != null) {
           print(user.uid);
@@ -123,10 +128,24 @@ class _LoginPageState extends State<LoginPage> {
 
           Navigator.of(context).pushAndRemoveUntil(
               MaterialPageRoute(
-                  builder: (context) => HomePage(
+                  builder: (context) => HomePageUser(
                         // title: user.displayName.toString(),
                         // email: user.email.toString(),
                         user: user,
+                      )),
+              (Route<dynamic> route) => false);
+        }
+      } else {
+        sharedPreference = await SharedPreferences.getInstance();
+        final isAutoLogin = await SharePreferencesStore.getPreferences(
+            sharedPreference, 'isAutoLogin');
+        if (isAutoLogin != null && isAutoLogin) {
+          Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(
+                  builder: (context) => HomePageAdmin(
+                        // title: user.displayName.toString(),
+                        // email: user.email.toString(),
+                        user: 'Admin',
                       )),
               (Route<dynamic> route) => false);
         }
@@ -140,7 +159,7 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('User Login'),
+        title: const Text('Login'),
       ),
       body: Form(
         key: _formKey,
@@ -243,34 +262,55 @@ class _LoginPageState extends State<LoginPage> {
                 onPressed: () async {
                   EasyLoading.show(status: 'loading...');
                   if (_formKey.currentState!.validate()) {
-                    bool? isSignedIn = await firebaseAuthentication(
-                        _nameController.text.toString().toLowerCase(),
-                        _emailController.text.toString(),
-                        _passwordController.text.toString());
-
-                    if (isSignedIn!) {
-                      EasyLoading.showSuccess('Success!');
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text("Login Successfull"),
-                        backgroundColor: Colors.green,
-                      ));
-
+                    if (_nameController.text.toString().toLowerCase() ==
+                            'admin' &&
+                        _emailController.text.toString() == 'admin@gmail.com' &&
+                        _passwordController.text.toString() == '123456') {
+                      sharedPreference = await SharedPreferences.getInstance();
+                      SharePreferencesStore.setPreference(
+                          sharedPreference, true);
                       Navigator.of(context).pushAndRemoveUntil(
                           MaterialPageRoute(
-                              builder: (context) => HomePage(
+                              builder: (context) => HomePageAdmin(
                                     // title: _nameController.text
                                     //     .toString()
                                     //     .toLowerCase(),
                                     // email: _emailController.text.toString(),
-                                    user: user!,
+                                    user: 'admin',
                                   )),
                           (Route<dynamic> route) => false);
                     } else {
-                      EasyLoading.showError('Failed with Error');
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text("Login Failed"),
-                        backgroundColor: Colors.red,
-                      ));
+                      bool? isSignedIn = await firebaseAuthentication(
+                          _nameController.text.toString().toLowerCase(),
+                          _emailController.text.toString(),
+                          _passwordController.text.toString());
+
+                      if (isSignedIn!) {
+                        EasyLoading.showSuccess('Success!');
+                        ScaffoldMessenger.of(context)
+                            .showSnackBar(const SnackBar(
+                          content: Text("Login Successfull"),
+                          backgroundColor: Colors.green,
+                        ));
+
+                        Navigator.of(context).pushAndRemoveUntil(
+                            MaterialPageRoute(
+                                builder: (context) => HomePageUser(
+                                      // title: _nameController.text
+                                      //     .toString()
+                                      //     .toLowerCase(),
+                                      // email: _emailController.text.toString(),
+                                      user: user!,
+                                    )),
+                            (Route<dynamic> route) => false);
+                      } else {
+                        EasyLoading.showError('Failed with Error');
+                        ScaffoldMessenger.of(context)
+                            .showSnackBar(const SnackBar(
+                          content: Text("Login Failed"),
+                          backgroundColor: Colors.red,
+                        ));
+                      }
                     }
                   }
                   EasyLoading.dismiss();
